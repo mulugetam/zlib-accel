@@ -1,0 +1,30 @@
+# Copyright (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+cmake_minimum_required(VERSION 3.15)
+
+project(zlib-accel-test VERSION 0.0.1)
+
+link_directories(../build)
+link_libraries(zlib-accel)
+
+include(../common.cmake)
+
+find_package(GTest REQUIRED)
+link_libraries(gtest pthread)
+
+# TODO Remove once crc16 references fixed in QPL
+add_link_options("-Wl,--unresolved-symbols=ignore-all")
+
+add_executable(zlib_accel_test zlib_accel_test.cpp ../utils.cpp)
+
+add_custom_target(run
+    COMMAND ./zlib-accel-test
+    DEPENDS zlib-accel-test
+)
+
+add_custom_target(coverage
+    COMMAND lcov --directory . --capture --output-file zlib_accel_test.info
+    COMMAND lcov --directory ../../build --capture --output-file zlib_accel.info
+    COMMAND genhtml -o html zlib_accel_test.info zlib_accel.info
+)

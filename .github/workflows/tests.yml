@@ -1,0 +1,50 @@
+name: zlib-accel Build and Test
+on:
+- push
+- pull_request
+jobs:
+  build_and_test_zlib_accel:
+    name: Build and test zlib-accel
+    runs-on: ubuntu-latest
+    steps:
+    - name: Print system info
+      run: |
+        echo "Kernel"
+        uname -r
+        echo "OS"
+        cat /etc/os-release
+        echo "Cores"
+        nproc
+        echo "Memory"
+        free
+        echo "User"
+        whoami
+    
+    - name: Install dependencies
+      run: |
+        export DEBIAN_FRONTEND=noninteractive
+        sudo apt-get install -y build-essential
+        sudo apt-get install -y cmake
+        sudo apt-get install -y libgtest-dev
+        sudo apt-get install -y zlib1g-dev
+    
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Build zlib-accel
+      run: |
+        pwd
+        mkdir build
+        cd build
+        cmake ..
+        make
+        
+    - name: Run unit tests
+      run: |
+        pwd
+        cd tests
+        mkdir build
+        cd build
+        cmake ..
+        make
+        ./zlib_accel_test
