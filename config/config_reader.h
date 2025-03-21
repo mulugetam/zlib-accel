@@ -17,14 +17,15 @@ class ConfigReader {
 
  public:
   bool ParseFile(std::string fileName);
-
-  bool GetValue(std::string tag, int& value);
+  bool GetValue(std::string tag, int& value, int max_value = 100,
+                int min_value = 0);
   bool GetValue(std::string tag, std::string& value);
 
   std::string DumpValues();
 
  private:
   // Helper function to trim the tag and value.
+  bool isValidFileNameOrPath(const std::string& input);
   std::string Trim(const std::string& str,
                    const std::string& whitespace = " \t");
   std::string Reduce(const std::string& str, const std::string& fill = " ",

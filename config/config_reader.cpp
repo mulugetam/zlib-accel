@@ -5,28 +5,53 @@
 
 #include <algorithm>
 #include <fstream>
+#include <regex>
 #include <sstream>
+
+#include "../logging.h"
+
+#define PATH_MAX 4096
 
 using namespace std;
 
-bool ConfigReader::GetValue(std::string tag, int& value) {
+bool ConfigReader::GetValue(std::string tag, int& value, int max_value,
+                            int min_value) {
+  bool ret_val = false;
   map<string, string>::iterator it;
   it = config_settings_map.find(tag);
   if (it != config_settings_map.end()) {
-    value = atoi((it->second).c_str());
-    return true;
+    char* p;
+    value = (int)strtol((it->second).c_str(), &p, 10);
+    if ((*p == 0) && (min_value <= value && value <= max_value)) {
+      ret_val = true;
+    } else {
+      Log(LogLevel::LOG_INFO,
+          "ConfigReader::GetValue  Line %d invalid input value for tag %s\n",
+          __LINE__, tag.c_str());
+      value = 0;
+      ret_val = false;
+    }
   }
-  return false;
+  return ret_val;
 }
 
 bool ConfigReader::GetValue(std::string tag, std::string& value) {
+  bool ret_val = false;
   map<string, string>::iterator it;
   it = config_settings_map.find(tag);
   if (it != config_settings_map.end()) {
     value = it->second;
-    return true;
+    if ((tag == "log_file") && !isValidFileNameOrPath(value)) {
+      Log(LogLevel::LOG_INFO,
+          "ConfigReader::GetValue  Line %d invalid log_file value  %s\n",
+          __LINE__, value.c_str());
+      value = "";
+      ret_val = false;
+    } else {
+      ret_val = true;
+    }
   }
-  return false;
+  return ret_val;
 }
 
 bool ConfigReader::ParseFile(string file_name) {
@@ -125,4 +150,18 @@ std::string ConfigReader::DumpValues() {
     values << it->first << " = " << it->second << endl;
   }
   return values.str();
+}
+
+bool ConfigReader::isValidFileNameOrPath(const std::string& input) {
+  // Check for null character
+  if (input.find('\0') != std::string::npos) {
+    return false;
+  }
+  // Check for length constraints
+  if (input.length() > PATH_MAX) {
+    return false;
+  }
+  // Regular expression to match valid file names and paths
+  std::regex validPattern("^[a-zA-Z0-9._/-]+$");
+  return std::regex_match(input, validPattern);
 }
