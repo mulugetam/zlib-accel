@@ -5,6 +5,10 @@ option(USE_IAA "Use IAA (requires QPL)" OFF)
 option(USE_QAT "Use QAT (requires QATzip)" OFF)
 option(DEBUG_LOG "for logging" ON)
 option(COVERAGE "for coverage" OFF)
+option(ASAN "Enable AddressSanitizer" OFF)
+option(UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
+# TSAN may require disabling ASLR at runtime.
+option(TSAN "Enable ThreadSanitizer" OFF)
 
 if(USE_IAA)
   add_compile_definitions(USE_IAA)
@@ -19,16 +23,24 @@ if(DEBUG_LOG)
 endif()
 
 set(COMPILER_FLAGS "-Wall -Wextra -Werror \
--flto -fvisibility=hidden \
+-fvisibility=hidden \
 -Wformat -Wformat-security -Werror=format-security \
 -D_FORTIFY_SOURCE=2 \
 -fstack-protector-strong")
+# UBSAN not compatible with -flto
+if(NOT UBSAN)
+  set(COMPILER_FLAGS "${COMPILER_FLAGS} -flto")
+endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   message(STATUS "GCC detected.")
   set(COMPILER_FLAGS "${COMPILER_FLAGS} -Wl,-z,noexecstack,-z,relro,-z,now -mindirect-branch-register")
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   message(STATUS "Clang detected.")
-  set(COMPILER_FLAGS "${COMPILER_FLAGS} -fsanitize=cfi -mretpoline")
+  set(COMPILER_FLAGS "${COMPILER_FLAGS}  -mretpoline")
+  # For UBSAN, -flto is disabled. -fsanitize=cfi depends on it.
+  if(NOT UBSAN)
+    set(COMPILER_FLAGS "${COMPILER_FLAGS} -fsanitize=cfi")
+  endif()
 endif()
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMPILER_FLAGS}")
@@ -42,6 +54,21 @@ endif()
 if(COVERAGE)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage")
+endif()
+
+if(ASAN)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
+endif()
+
+if(UBSAN)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=undefined")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined")
+endif()
+
+if(TSAN)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=thread")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
