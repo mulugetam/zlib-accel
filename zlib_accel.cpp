@@ -227,12 +227,19 @@ int ZEXPORT deflateInit2_(z_streamp strm, int level, int method,
 
 int ZEXPORT deflateSetDictionary(z_streamp strm, const Bytef* dictionary,
                                  uInt dictLength) {
+  if (!configs[IGNORE_ZLIB_DICTIONARY]) {
+    Log(LogLevel::LOG_INFO,
+        "deflateSetDictionary Line %d, strm %p, dictLength %u\n", __LINE__,
+        strm, dictLength);
+    DeflateSettings* deflate_settings = deflate_stream_settings.Get(strm);
+    deflate_settings->path = ZLIB;
+    return orig_deflateSetDictionary(strm, dictionary, dictLength);
+  }
   Log(LogLevel::LOG_INFO,
-      "deflateSetDictionary Line %d, strm %p, dictLength %u\n", __LINE__, strm,
-      dictLength);
-  DeflateSettings* deflate_settings = deflate_stream_settings.Get(strm);
-  deflate_settings->path = ZLIB;
-  return orig_deflateSetDictionary(strm, dictionary, dictLength);
+      "deflateSetDictionary Line %d ignored because ignore_zlib_dictionary is "
+      "set to %d\n",
+      __LINE__, configs[IGNORE_ZLIB_DICTIONARY]);
+  return Z_OK;
 }
 
 int ZEXPORT deflate(z_streamp strm, int flush) {
@@ -382,12 +389,19 @@ int ZEXPORT inflateInit2_(z_streamp strm, int window_bits, const char* version,
 
 int ZEXPORT inflateSetDictionary(z_streamp strm, const Bytef* dictionary,
                                  uInt dictLength) {
+  if (!configs[IGNORE_ZLIB_DICTIONARY]) {
+    Log(LogLevel::LOG_INFO,
+        "inflateSetDictionary Line %d, strm %p, dictLength %u\n", __LINE__,
+        strm, dictLength);
+    InflateSettings* inflate_settings = inflate_stream_settings.Get(strm);
+    inflate_settings->path = ZLIB;
+    return orig_inflateSetDictionary(strm, dictionary, dictLength);
+  }
   Log(LogLevel::LOG_INFO,
-      "inflateSetDictionary Line %d, strm %p, dictLength %u\n", __LINE__, strm,
-      dictLength);
-  InflateSettings* inflate_settings = inflate_stream_settings.Get(strm);
-  inflate_settings->path = ZLIB;
-  return orig_inflateSetDictionary(strm, dictionary, dictLength);
+      "inflateSetDictionary Line %d ignored because ignore_zlib_dictionary is "
+      "set to %d\n",
+      __LINE__, configs[IGNORE_ZLIB_DICTIONARY]);
+  return Z_OK;
 }
 
 int ZEXPORT inflate(z_streamp strm, int flush) {
