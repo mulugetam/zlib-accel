@@ -1236,13 +1236,13 @@ void CreateAndWriteTempConfigFile(const char* file_path) {
 
 TEST_F(ConfigLoaderTest, LoadInvalidConfig) {
   std::string file_content;
-  uint32_t DEFAULT_QAT_COMPRESS = GetConfig(USE_QAT_COMPRESS); 
-  uint32_t DEFAULT_QAT_UNCOMPRESS = GetConfig(USE_QAT_UNCOMPRESS); 
-  uint32_t DEFAULT_IAA_COMPRESS = GetConfig(USE_IAA_COMPRESS); 
-  uint32_t DEFAULT_IAA_UNCOMPRESS = GetConfig(USE_IAA_UNCOMPRESS); 
-  uint32_t DEFAULT_ZLIB_COMPRESS = GetConfig(USE_ZLIB_COMPRESS); 
-  uint32_t DEFAULT_ZLIB_UNCOMPRESS = GetConfig(USE_ZLIB_UNCOMPRESS); 
-  uint32_t DEFAULT_LOG_LEVEL = GetConfig(LOG_LEVEL); 
+  uint32_t DEFAULT_QAT_COMPRESS = GetConfig(USE_QAT_COMPRESS);
+  uint32_t DEFAULT_QAT_UNCOMPRESS = GetConfig(USE_QAT_UNCOMPRESS);
+  uint32_t DEFAULT_IAA_COMPRESS = GetConfig(USE_IAA_COMPRESS);
+  uint32_t DEFAULT_IAA_UNCOMPRESS = GetConfig(USE_IAA_UNCOMPRESS);
+  uint32_t DEFAULT_ZLIB_COMPRESS = GetConfig(USE_ZLIB_COMPRESS);
+  uint32_t DEFAULT_ZLIB_UNCOMPRESS = GetConfig(USE_ZLIB_UNCOMPRESS);
+  uint32_t DEFAULT_LOG_LEVEL = GetConfig(LOG_LEVEL);
 
   CreateAndWriteTempConfigFile("/tmp/invalid_config");
   EXPECT_TRUE(LoadConfigFile(file_content, "/tmp/invalid_config"));

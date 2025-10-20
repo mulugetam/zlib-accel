@@ -63,7 +63,7 @@ bool LoadConfigFile(std::string& file_content, const char* file_path) {
   }
   ConfigReader config_reader;
   config_reader.ParseFile(file_path);
-  
+
   auto trySetConfig = [&](ConfigOption opt, uint32_t max, uint32_t min) {
     uint32_t value;
     if (config_reader.GetValue(config_names[opt], value, max, min)) {
