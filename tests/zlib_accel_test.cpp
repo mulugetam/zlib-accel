@@ -1236,15 +1236,23 @@ void CreateAndWriteTempConfigFile(const char* file_path) {
 
 TEST_F(ConfigLoaderTest, LoadInvalidConfig) {
   std::string file_content;
+  uint32_t DEFAULT_QAT_COMPRESS = GetConfig(USE_QAT_COMPRESS);
+  uint32_t DEFAULT_QAT_UNCOMPRESS = GetConfig(USE_QAT_UNCOMPRESS);
+  uint32_t DEFAULT_IAA_COMPRESS = GetConfig(USE_IAA_COMPRESS);
+  uint32_t DEFAULT_IAA_UNCOMPRESS = GetConfig(USE_IAA_UNCOMPRESS);
+  uint32_t DEFAULT_ZLIB_COMPRESS = GetConfig(USE_ZLIB_COMPRESS);
+  uint32_t DEFAULT_ZLIB_UNCOMPRESS = GetConfig(USE_ZLIB_UNCOMPRESS);
+  uint32_t DEFAULT_LOG_LEVEL = GetConfig(LOG_LEVEL);
+
   CreateAndWriteTempConfigFile("/tmp/invalid_config");
   EXPECT_TRUE(LoadConfigFile(file_content, "/tmp/invalid_config"));
-  EXPECT_EQ(GetConfig(USE_QAT_COMPRESS), 0);
-  EXPECT_EQ(GetConfig(USE_QAT_UNCOMPRESS), 0);
-  EXPECT_EQ(GetConfig(USE_IAA_COMPRESS), 0);
-  EXPECT_EQ(GetConfig(USE_IAA_UNCOMPRESS), 0);
-  EXPECT_EQ(GetConfig(USE_ZLIB_COMPRESS), 0);
-  EXPECT_EQ(GetConfig(USE_ZLIB_UNCOMPRESS), 0);
-  EXPECT_EQ(GetConfig(LOG_LEVEL), 0);
+  EXPECT_EQ(GetConfig(USE_QAT_COMPRESS), DEFAULT_QAT_COMPRESS);
+  EXPECT_EQ(GetConfig(USE_QAT_UNCOMPRESS), DEFAULT_QAT_UNCOMPRESS);
+  EXPECT_EQ(GetConfig(USE_IAA_COMPRESS), DEFAULT_IAA_COMPRESS);
+  EXPECT_EQ(GetConfig(USE_IAA_UNCOMPRESS), DEFAULT_IAA_UNCOMPRESS);
+  EXPECT_EQ(GetConfig(USE_ZLIB_COMPRESS), DEFAULT_ZLIB_COMPRESS);
+  EXPECT_EQ(GetConfig(USE_ZLIB_UNCOMPRESS), DEFAULT_ZLIB_UNCOMPRESS);
+  EXPECT_EQ(GetConfig(LOG_LEVEL), DEFAULT_LOG_LEVEL);
   std::remove("/tmp/invalid_config");
   // Restore config from official config file
   LoadConfigFile(file_content);
