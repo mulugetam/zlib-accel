@@ -30,6 +30,7 @@ void IAAJob::InitJob(qpl_path_t execution_path) {
   }
   status = qpl_init_job(execution_path, jobs_[execution_path]);
   if (status != QPL_STS_OK) {
+    delete[] jobs_[execution_path];
     jobs_[execution_path] = nullptr;
   }
 }
