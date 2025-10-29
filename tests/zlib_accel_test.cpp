@@ -13,13 +13,16 @@
 #include <fstream>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <sstream>
+#include <thread>
 #include <tuple>
 #include <vector>
 
 #include "../config/config.h"
 #include "../iaa.h"
 #include "../qat.h"
+#include "../sharded_map.h"
 #include "../statistics.h"
 #include "../utils.h"
 #include "test_utils.h"
@@ -1286,6 +1289,205 @@ TEST_F(ConfigLoaderTest, SymbolicLinkTest) {
   EXPECT_FALSE(LoadConfigFile(file_content, symlink_path.c_str()));
   std::filesystem::remove(symlink_path);
   std::filesystem::remove(target_path);
+}
+
+class ShardedMapTest : public ::testing::Test {};
+
+TEST_F(ShardedMapTest, BasicSetAndGet) {
+  ShardedMap<std::string, std::unique_ptr<int>> map;
+
+  std::string key = "test_key";
+  auto value = std::make_unique<int>(42);
+  int* raw_ptr = value.get();
+
+  map.Set(key, std::move(value));
+
+  int* retrieved = map.Get(key);
+  ASSERT_NE(retrieved, nullptr);
+  EXPECT_EQ(*retrieved, 42);
+  EXPECT_EQ(retrieved, raw_ptr);
+
+  map.Unset(key);
+}
+
+TEST_F(ShardedMapTest, GetNonExistentKey) {
+  ShardedMap<std::string, std::unique_ptr<int>> map;
+  EXPECT_EQ(map.Get("non_existent"), nullptr);
+}
+
+TEST_F(ShardedMapTest, SetOverwritesExistingKey) {
+  ShardedMap<std::string, std::unique_ptr<int>> map;
+
+  std::string key = "test_key";
+  auto value1 = std::make_unique<int>(100);
+  auto value2 = std::make_unique<int>(200);
+  int* raw_ptr2 = value2.get();
+
+  map.Set(key, std::move(value1));
+  map.Set(key, std::move(value2));
+
+  int* retrieved = map.Get(key);
+  ASSERT_NE(retrieved, nullptr);
+  EXPECT_EQ(*retrieved, 200);
+  EXPECT_EQ(retrieved, raw_ptr2);
+
+  map.Unset(key);
+}
+
+TEST_F(ShardedMapTest, UnsetRemovesKey) {
+  ShardedMap<std::string, std::unique_ptr<int>> map;
+
+  std::string key = "test_key";
+  auto value = std::make_unique<int>(42);
+
+  map.Set(key, std::move(value));
+
+  int* retrieved_before = map.Get(key);
+  ASSERT_NE(retrieved_before, nullptr);
+
+  map.Unset(key);
+
+  EXPECT_EQ(map.Get(key), nullptr);
+}
+
+TEST_F(ShardedMapTest, UnsetNonExistentKey) {
+  ShardedMap<std::string, std::unique_ptr<int>> map;
+  EXPECT_NO_THROW(map.Unset("non_existent"));
+}
+
+TEST_F(ShardedMapTest, MultipleKeys) {
+  ShardedMap<std::string, std::unique_ptr<int>> map;
+
+  for (int i = 0; i < 10; i++) {
+    std::string key = "key_" + std::to_string(i);
+    auto value = std::make_unique<int>(i * 10);
+    map.Set(key, std::move(value));
+  }
+
+  for (int i = 0; i < 10; i++) {
+    std::string key = "key_" + std::to_string(i);
+    int* value = map.Get(key);
+    ASSERT_NE(value, nullptr);
+    EXPECT_EQ(*value, i * 10);
+  }
+
+  for (int i = 0; i < 10; i++) {
+    std::string key = "key_" + std::to_string(i);
+    map.Unset(key);
+  }
+
+  EXPECT_EQ(map.Get("key_5"), nullptr);
+}
+
+TEST_F(ShardedMapTest, DifferentShards) {
+  ShardedMap<std::string, std::unique_ptr<int>> map;
+
+  std::vector<std::string> keys = {"key1",        "key2", "key3", "another_key",
+                                   "yet_another", "test", "data", "value"};
+
+  for (size_t i = 0; i < keys.size(); i++) {
+    auto value = std::make_unique<int>(i * 100);
+    map.Set(keys[i], std::move(value));
+  }
+
+  for (size_t i = 0; i < keys.size(); i++) {
+    int* value = map.Get(keys[i]);
+    ASSERT_NE(value, nullptr);
+    EXPECT_EQ(*value, static_cast<int>(i * 100));
+  }
+
+  for (const auto& key : keys) {
+    map.Unset(key);
+  }
+}
+
+TEST_F(ShardedMapTest, ConcurrentOperations) {
+  ShardedMap<std::string, std::unique_ptr<int>> map;
+
+  for (int i = 0; i < 50; i++) {
+    std::string key = "key_" + std::to_string(i);
+    auto value = std::make_unique<int>(i);
+    map.Set(key, std::move(value));
+  }
+
+  std::vector<std::thread> threads;
+
+  // Reader threads
+  for (int t = 0; t < 5; t++) {
+    threads.emplace_back([&map]() {
+      for (int i = 0; i < 100; i++) {
+        std::string key = "key_" + std::to_string(i % 50);
+        int* val = map.Get(key);
+        ASSERT_NE(val, nullptr);
+      }
+    });
+  }
+
+  // Writer threads
+  for (int t = 0; t < 5; t++) {
+    threads.emplace_back([&map, t]() {
+      for (int i = 0; i < 20; i++) {
+        std::string key = "new_key_" + std::to_string(t * 20 + i);
+        auto value = std::make_unique<int>(1000 + t * 20 + i);
+        map.Set(key, std::move(value));
+      }
+    });
+  }
+
+  for (auto& thread : threads) {
+    thread.join();
+  }
+
+  // Original data should still be intact
+  for (int i = 0; i < 50; i++) {
+    std::string key = "key_" + std::to_string(i);
+    int* value = map.Get(key);
+    ASSERT_NE(value, nullptr);
+    EXPECT_EQ(*value, i);
+  }
+
+  // Verify new data was written
+  for (int t = 0; t < 5; t++) {
+    for (int i = 0; i < 20; i++) {
+      std::string key = "new_key_" + std::to_string(t * 20 + i);
+      int* value = map.Get(key);
+      ASSERT_NE(value, nullptr);
+      EXPECT_EQ(*value, 1000 + t * 20 + i);
+    }
+  }
+
+  for (int i = 0; i < 50; i++) {
+    std::string key = "key_" + std::to_string(i);
+    map.Unset(key);
+  }
+  for (int t = 0; t < 5; t++) {
+    for (int i = 0; i < 20; i++) {
+      std::string key = "new_key_" + std::to_string(t * 20 + i);
+      map.Unset(key);
+    }
+  }
+}
+
+TEST_F(ShardedMapTest, IntegerKeys) {
+  ShardedMap<int, std::unique_ptr<int>> map;
+
+  for (int i = 0; i < 20; i++) {
+    auto value = std::make_unique<int>(i * 5);
+    map.Set(i, std::move(value));
+  }
+
+  for (int i = 0; i < 20; i++) {
+    int* value = map.Get(i);
+    ASSERT_NE(value, nullptr);
+    EXPECT_EQ(*value, i * 5);
+  }
+
+  for (int i = 0; i < 20; i++) {
+    map.Unset(i);
+  }
+
+  // Verify cleanup
+  EXPECT_EQ(map.Get(10), nullptr);
 }
 
 int main(int argc, char* argv[]) {

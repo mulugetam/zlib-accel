@@ -207,9 +207,9 @@ class DeflateStreamSettings {
  public:
   void Set(z_streamp strm, int level, int method, int window_bits,
            int mem_level, int strategy) {
-    DeflateSettings* settings =
-        new DeflateSettings(level, method, window_bits, mem_level, strategy);
-    map.Set(strm, settings);
+    auto settings = std::make_unique<DeflateSettings>(
+        level, method, window_bits, mem_level, strategy);
+    map.Set(strm, std::move(settings));
   }
 
   void Unset(z_streamp strm) { map.Unset(strm); }
@@ -217,15 +217,15 @@ class DeflateStreamSettings {
   DeflateSettings* Get(z_streamp strm) { return map.Get(strm); }
 
  private:
-  ShardedMap<z_streamp, DeflateSettings*> map;
+  ShardedMap<z_streamp, std::unique_ptr<DeflateSettings>> map;
 };
 DeflateStreamSettings deflate_stream_settings;
 
 class InflateStreamSettings {
  public:
   void Set(z_streamp strm, int window_bits) {
-    InflateSettings* settings = new InflateSettings(window_bits);
-    map.Set(strm, settings);
+    auto settings = std::make_unique<InflateSettings>(window_bits);
+    map.Set(strm, std::move(settings));
   }
 
   void Unset(z_streamp strm) { map.Unset(strm); }
@@ -233,7 +233,7 @@ class InflateStreamSettings {
   InflateSettings* Get(z_streamp strm) { return map.Get(strm); }
 
  private:
-  ShardedMap<z_streamp, InflateSettings*> map;
+  ShardedMap<z_streamp, std::unique_ptr<InflateSettings>> map;
 };
 InflateStreamSettings inflate_stream_settings;
 
@@ -817,8 +817,8 @@ struct GzipFile {
 class GzipFiles {
  public:
   void Set(gzFile file, int fd, FileMode file_mode) {
-    GzipFile* f = new GzipFile(fd, file_mode);
-    map.Set(file, f);
+    auto f = std::make_unique<GzipFile>(fd, file_mode);
+    map.Set(file, std::move(f));
   }
 
   void Unset(gzFile file) { map.Unset(file); }
@@ -826,7 +826,7 @@ class GzipFiles {
   GzipFile* Get(gzFile file) { return map.Get(file); }
 
  private:
-  ShardedMap<gzFile, GzipFile*> map;
+  ShardedMap<gzFile, std::unique_ptr<GzipFile>> map;
 };
 GzipFiles gzip_files;
 
