@@ -6,7 +6,9 @@
 #include <iostream>
 
 #ifdef DEBUG_LOG
-void Log(std::string message) { std::cout << message << std::endl; }
+void Log(std::string message) {
+  (void)message;
+}  // std::cout << "ZZZ" << message << std::endl; }
 #endif
 
 int ZlibCompress(const char* input, size_t input_length, std::string* output,

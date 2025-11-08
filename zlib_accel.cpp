@@ -204,8 +204,8 @@ InflateStreamSettings inflate_stream_settings;
 
 int ZEXPORT deflateInit_(z_streamp strm, int level, const char* version,
                          int stream_size) {
-  Log(LogLevel::LOG_INFO, "deflateInit_ Line %d, strm %p, level %d\n", __LINE__,
-      strm, level);
+  Log(LogLevel::LOG_INFO, "deflateInit_ Line {}, strm {:p}, level {}\n",
+      __LINE__, static_cast<void*>(strm), level);
 
   deflate_stream_settings.Set(strm, level, Z_DEFLATED, 15, 8,
                               Z_DEFAULT_STRATEGY);
@@ -216,8 +216,8 @@ int ZEXPORT deflateInit2_(z_streamp strm, int level, int method,
                           int window_bits, int mem_level, int strategy,
                           const char* version, int stream_size) {
   Log(LogLevel::LOG_INFO,
-      "deflateInit2_ Line %d, strm %p, level %d, window_bits %d \n", __LINE__,
-      strm, level, window_bits);
+      "deflateInit2_ Line {}, strm {:p}, level {}, window_bits {} \n", __LINE__,
+      static_cast<void*>(strm), level, window_bits);
 
   deflate_stream_settings.Set(strm, level, method, window_bits, mem_level,
                               strategy);
@@ -228,8 +228,8 @@ int ZEXPORT deflateInit2_(z_streamp strm, int level, int method,
 int ZEXPORT deflateSetDictionary(z_streamp strm, const Bytef* dictionary,
                                  uInt dictLength) {
   Log(LogLevel::LOG_INFO,
-      "deflateSetDictionary Line %d, strm %p, dictLength %u\n", __LINE__, strm,
-      dictLength);
+      "deflateSetDictionary Line {}, strm {:p}, dictLength %u\n", __LINE__,
+      static_cast<void*>(strm), dictLength);
   DeflateSettings* deflate_settings = deflate_stream_settings.Get(strm);
   deflate_settings->path = ZLIB;
   return orig_deflateSetDictionary(strm, dictionary, dictLength);
@@ -241,10 +241,11 @@ int ZEXPORT deflate(z_streamp strm, int flush) {
   PrintStats();
 
   Log(LogLevel::LOG_INFO,
-      "deflate Line %d, strm %p, avail_in %d, avail_out %d, flush %d, in_call "
-      "%d, path %d\n",
-      __LINE__, strm, strm->avail_in, strm->avail_out, flush, in_call,
-      deflate_settings->path);
+      "deflate Line {}, strm {:p}, avail_in {}, avail_out {}, flush {}, "
+      "in_call "
+      "{}, path {}\n",
+      __LINE__, static_cast<void*>(strm), strm->avail_in, strm->avail_out,
+      flush, in_call, static_cast<int>(deflate_settings->path));
 
   int ret = 1;
   bool iaa_available = false;
@@ -320,10 +321,11 @@ int ZEXPORT deflate(z_streamp strm, int flush) {
       }
 
       Log(LogLevel::LOG_INFO,
-          "deflate Line %d, strm %p, accelerator return code %d, avail_in %d, "
-          "avail_out %d, path %d\n",
-          __LINE__, strm, ret, strm->avail_in, strm->avail_out,
-          deflate_settings->path);
+          "deflate Line {}, strm {:p}, accelerator return code {}, avail_in "
+          "{}, "
+          "avail_out {}, path {}\n",
+          __LINE__, static_cast<void*>(strm), ret, strm->avail_in,
+          strm->avail_out, static_cast<int>(deflate_settings->path));
       return ret;
     }
   }
@@ -339,23 +341,25 @@ int ZEXPORT deflate(z_streamp strm, int flush) {
   }
 
   Log(LogLevel::LOG_INFO,
-      "deflate Line %d, strm %p, zlib return code %d, avail_in %d, "
-      "avail_out %d, path %d\n",
-      __LINE__, strm, ret, strm->avail_in, strm->avail_out,
-      deflate_settings->path);
+      "deflate Line {}, strm {:p}, zlib return code {}, avail_in {}, "
+      "avail_out {}, path {}\n",
+      __LINE__, static_cast<void*>(strm), ret, strm->avail_in, strm->avail_out,
+      static_cast<int>(deflate_settings->path));
 
   INCREMENT_STAT_COND(ret < 0, DEFLATE_ERROR_COUNT);
   return ret;
 }
 
 int ZEXPORT deflateEnd(z_streamp strm) {
-  Log(LogLevel::LOG_INFO, "deflateEnd Line %d, strm %p\n", __LINE__, strm);
+  Log(LogLevel::LOG_INFO, "deflateEnd Line {}, strm {:p}\n", __LINE__,
+      static_cast<void*>(strm));
   deflate_stream_settings.Unset(strm);
   return orig_deflateEnd(strm);
 }
 
 int ZEXPORT deflateReset(z_streamp strm) {
-  Log(LogLevel::LOG_INFO, "deflateReset Line %d, strm %p\n", __LINE__, strm);
+  Log(LogLevel::LOG_INFO, "deflateReset Line {}, strm {:p}\n", __LINE__,
+      static_cast<void*>(strm));
   DeflateSettings* deflate_settings = deflate_stream_settings.Get(strm);
   if (deflate_settings != nullptr) {
     deflate_settings->path = UNDEFINED;
@@ -366,7 +370,8 @@ int ZEXPORT deflateReset(z_streamp strm) {
 
 int ZEXPORT inflateInit_(z_streamp strm, const char* version, int stream_size) {
   inflate_stream_settings.Set(strm, 15);
-  Log(LogLevel::LOG_INFO, "inflateInit_ Line %d, strm %p\n", __LINE__, strm);
+  Log(LogLevel::LOG_INFO, "inflateInit_ Line {}, strm {:p}\n", __LINE__,
+      static_cast<void*>(strm));
 
   return orig_inflateInit_(strm, version, stream_size);
 }
@@ -374,8 +379,8 @@ int ZEXPORT inflateInit_(z_streamp strm, const char* version, int stream_size) {
 int ZEXPORT inflateInit2_(z_streamp strm, int window_bits, const char* version,
                           int stream_size) {
   inflate_stream_settings.Set(strm, window_bits);
-  Log(LogLevel::LOG_INFO, "inflateInit2_ Line %d, strm %p, window_bits %d\n",
-      __LINE__, strm, window_bits);
+  Log(LogLevel::LOG_INFO, "inflateInit2_ Line {}, strm {:p}, window_bits {}\n",
+      __LINE__, static_cast<void*>(strm), window_bits);
 
   return orig_inflateInit2_(strm, window_bits, version, stream_size);
 }
@@ -383,8 +388,8 @@ int ZEXPORT inflateInit2_(z_streamp strm, int window_bits, const char* version,
 int ZEXPORT inflateSetDictionary(z_streamp strm, const Bytef* dictionary,
                                  uInt dictLength) {
   Log(LogLevel::LOG_INFO,
-      "inflateSetDictionary Line %d, strm %p, dictLength %u\n", __LINE__, strm,
-      dictLength);
+      "inflateSetDictionary Line {}, strm {:p}, dictLength %u\n", __LINE__,
+      static_cast<void*>(strm), dictLength);
   InflateSettings* inflate_settings = inflate_stream_settings.Get(strm);
   inflate_settings->path = ZLIB;
   return orig_inflateSetDictionary(strm, dictionary, dictLength);
@@ -396,10 +401,11 @@ int ZEXPORT inflate(z_streamp strm, int flush) {
   PrintStats();
 
   Log(LogLevel::LOG_INFO,
-      "inflate Line %d, strm %p, avail_in %d, avail_out %d, flush %d, in_call "
-      "%d, path %d\n",
-      __LINE__, strm, strm->avail_in, strm->avail_out, flush, in_call,
-      inflate_settings->path);
+      "inflate Line {}, strm {:p}, avail_in {}, avail_out {}, flush {}, "
+      "in_call "
+      "{}, path {}\n",
+      __LINE__, static_cast<void*>(strm), strm->avail_in, strm->avail_out,
+      flush, in_call, static_cast<int>(inflate_settings->path));
   PrintDeflateBlockHeader(LogLevel::LOG_INFO, strm->next_in, strm->avail_in,
                           inflate_settings->window_bits);
 
@@ -488,10 +494,12 @@ int ZEXPORT inflate(z_streamp strm, int flush) {
       }
 
       Log(LogLevel::LOG_INFO,
-          "inflate Line %d, strm %p, accelerator return code %d, avail_in %d, "
-          "avail_out %d, end_of_stream %d, path %d\n",
-          __LINE__, strm, ret, strm->avail_in, strm->avail_out, end_of_stream,
-          inflate_settings->path);
+          "inflate Line {}, strm {:p}, accelerator return code {}, avail_in "
+          "{}, "
+          "avail_out {}, end_of_stream {}, path {}\n",
+          __LINE__, static_cast<void*>(strm), ret, strm->avail_in,
+          strm->avail_out, end_of_stream,
+          static_cast<int>(inflate_settings->path));
       return ret;
     }
   }
@@ -507,23 +515,25 @@ int ZEXPORT inflate(z_streamp strm, int flush) {
   }
 
   Log(LogLevel::LOG_INFO,
-      "inflate Line %d, strm %p, zlib return code %d, avail_in %d, avail_out "
-      "%d, path %d\n",
-      __LINE__, strm, ret, strm->avail_in, strm->avail_out,
-      inflate_settings->path);
+      "inflate Line {}, strm {:p}, zlib return code {}, avail_in {}, avail_out "
+      "{}, path {}\n",
+      __LINE__, static_cast<void*>(strm), ret, strm->avail_in, strm->avail_out,
+      static_cast<int>(inflate_settings->path));
 
   INCREMENT_STAT_COND(ret < 0, INFLATE_ERROR_COUNT);
   return ret;
 }
 
 int ZEXPORT inflateEnd(z_streamp strm) {
-  Log(LogLevel::LOG_INFO, "inflateEnd Line %d, strm %p\n", __LINE__, strm);
+  Log(LogLevel::LOG_INFO, "inflateEnd Line {}, strm {:p}\n", __LINE__,
+      static_cast<void*>(strm));
   inflate_stream_settings.Unset(strm);
   return orig_inflateEnd(strm);
 }
 
 int ZEXPORT inflateReset(z_streamp strm) {
-  Log(LogLevel::LOG_INFO, "inflateReset Line %d, strm %p\n", __LINE__, strm);
+  Log(LogLevel::LOG_INFO, "inflateReset Line {}, strm {:p}\n", __LINE__,
+      static_cast<void*>(strm));
   InflateSettings* inflate_settings = inflate_stream_settings.Get(strm);
   if (inflate_settings != nullptr) {
     inflate_settings->path = UNDEFINED;
@@ -534,7 +544,7 @@ int ZEXPORT inflateReset(z_streamp strm) {
 
 int ZEXPORT compress2(Bytef* dest, uLongf* destLen, const Bytef* source,
                       uLong sourceLen, int level) {
-  Log(LogLevel::LOG_INFO, "compress2 Line %d, sourceLen %lu, destLen %lu\n",
+  Log(LogLevel::LOG_INFO, "compress2 Line {}, sourceLen %lu, destLen %lu\n",
       __LINE__, sourceLen, *destLen);
 
   int ret = 1;
@@ -581,7 +591,7 @@ int ZEXPORT compress2(Bytef* dest, uLongf* destLen, const Bytef* source,
     ret = Z_OK;
 
     Log(LogLevel::LOG_INFO,
-        "compress2 Line %d, accelerator return code %d, sourceLen %lu, "
+        "compress2 Line {}, accelerator return code {}, sourceLen %lu, "
         "destLen %lu\n",
         __LINE__, ret, sourceLen, *destLen);
   } else if (configs[USE_ZLIB_COMPRESS]) {
@@ -592,7 +602,7 @@ int ZEXPORT compress2(Bytef* dest, uLongf* destLen, const Bytef* source,
     ret = orig_compress2(dest, destLen, source, sourceLen, level);
     in_call = false;
     Log(LogLevel::LOG_INFO,
-        "compress2 Line %d, zlib return code %d, sourceLen %lu, "
+        "compress2 Line {}, zlib return code {}, sourceLen %lu, "
         "destLen %lu\n",
         __LINE__, ret, sourceLen, *destLen);
   } else {
@@ -608,7 +618,7 @@ int ZEXPORT compress(Bytef* dest, uLongf* destLen, const Bytef* source,
 
 int ZEXPORT uncompress2(Bytef* dest, uLongf* destLen, const Bytef* source,
                         uLong* sourceLen) {
-  Log(LogLevel::LOG_INFO, "uncompress2 Line %d, sourceLen %lu, destLen %lu\n",
+  Log(LogLevel::LOG_INFO, "uncompress2 Line {}, sourceLen %lu, destLen %lu\n",
       __LINE__, *sourceLen, *destLen);
 
   int ret = 1;
@@ -659,7 +669,7 @@ int ZEXPORT uncompress2(Bytef* dest, uLongf* destLen, const Bytef* source,
     ret = Z_OK;
 
     Log(LogLevel::LOG_INFO,
-        "uncompress2 Line %d, accelerator return code %d, sourceLen %lu, "
+        "uncompress2 Line {}, accelerator return code {}, sourceLen %lu, "
         "destLen %lu\n",
         __LINE__, ret, *sourceLen, *destLen);
   } else if (configs[USE_ZLIB_UNCOMPRESS]) {
@@ -668,7 +678,7 @@ int ZEXPORT uncompress2(Bytef* dest, uLongf* destLen, const Bytef* source,
     ret = orig_uncompress2(dest, destLen, source, sourceLen);
     in_call = false;
     Log(LogLevel::LOG_INFO,
-        "uncompress2 Line %d, zlib return code %d, sourceLen %lu, "
+        "uncompress2 Line {}, zlib return code {}, sourceLen %lu, "
         "destLen %lu\n",
         __LINE__, ret, *sourceLen, *destLen);
   } else {
@@ -861,8 +871,8 @@ gzFile ZEXPORT gzopen(const char* path, const char* mode) {
   gzFile file = orig_gzdopen(fd, mode);
   // TODO in case of error fall back to zlib and set execution path.
 
-  Log(LogLevel::LOG_INFO, "gzopen Line %d, file %p, path %s, mode %s\n",
-      __LINE__, file, path, mode);
+  Log(LogLevel::LOG_INFO, "gzopen Line {}, file {:p}, path {}, mode {}\n",
+      __LINE__, static_cast<void*>(file), path, mode);
 
   gzip_files.Set(file, fd, file_mode);
   return file;
@@ -871,8 +881,8 @@ gzFile ZEXPORT gzopen(const char* path, const char* mode) {
 gzFile ZEXPORT gzdopen(int fd, const char* mode) {
   gzFile file = orig_gzdopen(fd, mode);
 
-  Log(LogLevel::LOG_INFO, "gzdopen Line %d, file %d, fd %p, mode %s\n",
-      __LINE__, fd, file, mode);
+  Log(LogLevel::LOG_INFO, "gzdopen Line {}, file {}, fd {:p}, mode {}\n",
+      __LINE__, fd, static_cast<void*>(file), mode);
 
   FileMode file_mode = FileMode::NONE;
   GetOpenFlags(mode, &file_mode);
@@ -1011,10 +1021,10 @@ static int CompressAndWrite(gzFile file, GzipFile* gz) {
   int ret =
       GzwriteAcceleratorCompress(gz, input, &input_len, output, &output_len);
   Log(LogLevel::LOG_INFO,
-      "CompressAndWrite Line %d, file %p, accelerator return code %d, input "
-      "%d, "
-      "output %d\n",
-      __LINE__, file, ret, input_len, output_len);
+      "CompressAndWrite Line {}, file {:p}, accelerator return code {}, input "
+      "{}, "
+      "output {}\n",
+      __LINE__, static_cast<void*>(file), ret, input_len, output_len);
 
   if (ret == 0) {
     gz->data_buf_pos = input_len;
@@ -1026,10 +1036,10 @@ static int CompressAndWrite(gzFile file, GzipFile* gz) {
     gz->deflate_stream.avail_out = static_cast<unsigned int>(gz->io_buf_size);
     ret = orig_deflate(&gz->deflate_stream, Z_FINISH);
     Log(LogLevel::LOG_INFO,
-        "CompressAndWrite Line %d, file %p, zlib return code %d, input %d, "
-        "output %d, avail_in %d, avail_out %d\n",
-        __LINE__, file, ret, input_len, output_len, gz->deflate_stream.avail_in,
-        gz->deflate_stream.avail_out);
+        "CompressAndWrite Line {}, file {:p}, zlib return code {}, input {}, "
+        "output {}, avail_in {}, avail_out {}\n",
+        __LINE__, static_cast<void*>(file), ret, input_len, output_len,
+        gz->deflate_stream.avail_in, gz->deflate_stream.avail_out);
     if (ret == Z_STREAM_END) {
       gz->data_buf_pos = gz->data_buf_content - gz->deflate_stream.avail_in;
       output_len = gz->io_buf_size - gz->deflate_stream.avail_out;
@@ -1043,8 +1053,8 @@ static int CompressAndWrite(gzFile file, GzipFile* gz) {
   do {
     write_ret = write(gz->fd, gz->io_buf, output_len);
     Log(LogLevel::LOG_INFO,
-        "CompressAndWrite Line %d, file %p, written to file %d\n", __LINE__,
-        file, write_ret);
+        "CompressAndWrite Line {}, file {:p}, written to file {}\n", __LINE__,
+        static_cast<void*>(file), write_ret);
     if (write_ret >= 0) {
       output_len -= write_ret;
     }
@@ -1059,8 +1069,8 @@ static int CompressAndWrite(gzFile file, GzipFile* gz) {
 
 int ZEXPORT gzwrite(gzFile file, voidpc buf, unsigned len) {
   GzipFile* gz = gzip_files.Get(file);
-  Log(LogLevel::LOG_INFO, "gzwrite Line %d, file %p, buf %p, len %u\n",
-      __LINE__, file, buf, len);
+  Log(LogLevel::LOG_INFO, "gzwrite Line {}, file {:p}, buf {:p}, len %u\n",
+      __LINE__, static_cast<void*>(file), buf, len);
 
   unsigned int written_bytes = 0;
   bool accelerator_selected =
@@ -1082,8 +1092,9 @@ int ZEXPORT gzwrite(gzFile file, voidpc buf, unsigned len) {
       gz->data_buf_content += data_to_copy;
       written_bytes += data_to_copy;
       Log(LogLevel::LOG_INFO,
-          "gzwrite Line %d, file %p, remaining %u, to copy %u, written %u\n",
-          __LINE__, file, data_buf_remaining, data_to_copy, written_bytes);
+          "gzwrite Line {}, file {:p}, remaining %u, to copy %u, written %u\n",
+          __LINE__, static_cast<void*>(file), data_buf_remaining, data_to_copy,
+          written_bytes);
 
       // Compress and write the buffer
       if (written_bytes < len) {
@@ -1108,9 +1119,10 @@ int ZEXPORT gzwrite(gzFile file, voidpc buf, unsigned len) {
 
 gzwrite_end:
   Log(LogLevel::LOG_INFO,
-      "gzwrite Line %d, file %p, "
-      "written %d, buffered %d, path %d\n",
-      __LINE__, file, written_bytes, gz->data_buf_pos, gz->path);
+      "gzwrite Line {}, file {:p}, "
+      "written {}, buffered {}, path {}\n",
+      __LINE__, static_cast<void*>(file), written_bytes, gz->data_buf_pos,
+      static_cast<int>(gz->path));
 
   return written_bytes;
 }
@@ -1118,8 +1130,8 @@ gzwrite_end:
 int ZEXPORT gzread(gzFile file, voidp buf, unsigned len) {
   GzipFile* gz = gzip_files.Get(file);
 
-  Log(LogLevel::LOG_INFO, "gzread Line %d, file %p, buf %p, len %u\n", __LINE__,
-      file, buf, len);
+  Log(LogLevel::LOG_INFO, "gzread Line {}, file {:p}, buf {:p}, len %u\n",
+      __LINE__, static_cast<void*>(file), buf, len);
 
   int ret = 1;
   uint32_t read_bytes = 0;
@@ -1142,8 +1154,9 @@ int ZEXPORT gzread(gzFile file, voidp buf, unsigned len) {
       gz->data_buf_pos += data_to_copy;
       read_bytes += data_to_copy;
       Log(LogLevel::LOG_INFO,
-          "gzread Line %d, file %p, remaining %u, to copy %u, read %u\n",
-          __LINE__, file, data_remaining, data_to_copy, read_bytes);
+          "gzread Line {}, file {:p}, remaining %u, to copy %u, read %u\n",
+          __LINE__, static_cast<void*>(file), data_remaining, data_to_copy,
+          read_bytes);
 
       // If not enough uncompressed data in data_buf, read and decompress more
       // (if more available)
@@ -1165,8 +1178,8 @@ int ZEXPORT gzread(gzFile file, voidp buf, unsigned len) {
               gz->io_buf_content += read_ret;
             }
             Log(LogLevel::LOG_INFO,
-                "gzread Line %d, file %p, read from file %d\n", __LINE__, file,
-                read_ret);
+                "gzread Line {}, file {:p}, read from file {}\n", __LINE__,
+                static_cast<void*>(file), read_ret);
           } while (gz->io_buf_content < gz->io_buf_size && read_ret > 0);
 
           // Check for EOF/error
@@ -1191,10 +1204,10 @@ int ZEXPORT gzread(gzFile file, voidp buf, unsigned len) {
             ret = GzreadAcceleratorUncompress(gz, input, &input_len, output,
                                               &output_len, &end_of_stream);
             Log(LogLevel::LOG_INFO,
-                "gzread Line %d, file %p, accelerator return code %d, input "
-                "%d, "
-                "output %d\n",
-                __LINE__, file, ret, input_len, output_len);
+                "gzread Line {}, file {:p}, accelerator return code {}, input "
+                "{}, "
+                "output {}\n",
+                __LINE__, static_cast<void*>(file), ret, input_len, output_len);
 
             // If we didn't reach end-of-stream, it means io_buf is not large
             // enough to hold the entire stream
@@ -1218,9 +1231,9 @@ int ZEXPORT gzread(gzFile file, voidp buf, unsigned len) {
                 static_cast<unsigned int>(gz->data_buf_size);
             ret = orig_inflate(&gz->inflate_stream, Z_SYNC_FLUSH);
             Log(LogLevel::LOG_INFO,
-                "gzread Line %d, file %p, zlib return code %d, input %d, "
-                "output %d, avail_in %d, avail_out %d\n",
-                __LINE__, file, ret, input_len, output_len,
+                "gzread Line {}, file {:p}, zlib return code {}, input {}, "
+                "output {}, avail_in {}, avail_out {}\n",
+                __LINE__, static_cast<void*>(file), ret, input_len, output_len,
                 gz->inflate_stream.avail_in, gz->inflate_stream.avail_out);
             if (ret == Z_STREAM_END || ret == Z_OK) {
               gz->io_buf_pos +=
@@ -1254,18 +1267,19 @@ int ZEXPORT gzread(gzFile file, voidp buf, unsigned len) {
 
 gzread_end:
   Log(LogLevel::LOG_INFO,
-      "gzread Line %d, file %p, return code %d, "
-      "read %d, buffered compressed %d, buffered uncompressed %d, path %d\n",
-      __LINE__, file, ret, read_bytes, gz->io_buf_content,
-      gz->data_buf_content - gz->data_buf_pos, gz->path);
+      "gzread Line {}, file {:p}, return code {}, "
+      "read {}, buffered compressed {}, buffered uncompressed {}, path {}\n",
+      __LINE__, static_cast<void*>(file), ret, read_bytes, gz->io_buf_content,
+      gz->data_buf_content - gz->data_buf_pos, static_cast<int>(gz->path));
   return read_bytes;
 }
 
 int ZEXPORT gzclose(gzFile file) {
   GzipFile* gz = gzip_files.Get(file);
 
-  Log(LogLevel::LOG_INFO, "gzclose Line %d, file %p, buffered %d, path %d\n",
-      __LINE__, file, gz->data_buf_content, gz->path);
+  Log(LogLevel::LOG_INFO, "gzclose Line {}, file {:p}, buffered {}, path {}\n",
+      __LINE__, static_cast<void*>(file), gz->data_buf_content,
+      static_cast<int>(gz->path));
 
   int ret = 0;
   if (gz->path != ZLIB &&
@@ -1285,7 +1299,7 @@ int ZEXPORT gzclose(gzFile file) {
     if (readlink_ret == -1) {
       ret = orig_gzclose(file);
       gzip_files.Unset(file);
-      Log(LogLevel::LOG_ERROR, "gzclose Line %d, readlink_ret return error \n",
+      Log(LogLevel::LOG_ERROR, "gzclose Line {}, readlink_ret return error \n",
           __LINE__);
       return ret;
     }
@@ -1311,8 +1325,8 @@ int ZEXPORT gzclose(gzFile file) {
   }
 
   Log(LogLevel::LOG_INFO,
-      "gzclose Line %d, file %p, return code %d, buffered processed %d\n",
-      __LINE__, file, ret, gz->data_buf_pos);
+      "gzclose Line {}, file {:p}, return code {}, buffered processed {}\n",
+      __LINE__, static_cast<void*>(file), ret, gz->data_buf_pos);
   gzip_files.Unset(file);
   return ret;
 }

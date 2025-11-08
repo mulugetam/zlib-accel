@@ -56,7 +56,7 @@ uint32_t GetFormatFlag(int window_bits) {
 int CompressIAA(uint8_t* input, uint32_t* input_length, uint8_t* output,
                 uint32_t* output_length, qpl_path_t execution_path,
                 int window_bits, uint32_t max_compressed_size, bool gzip_ext) {
-  Log(LogLevel::LOG_INFO, "CompressIAA() Line %d input_length %d\n", __LINE__,
+  Log(LogLevel::LOG_INFO, "CompressIAA() Line {} input_length {}\n", __LINE__,
       *input_length);
 
   // State from previous job execution not ignored/reset correctly for zlib
@@ -68,7 +68,7 @@ int CompressIAA(uint8_t* input, uint32_t* input_length, uint8_t* output,
 
   qpl_job* job = job_.GetJob(execution_path);
   if (job == nullptr) {
-    Log(LogLevel::LOG_ERROR, "CompressIAA() Line %d Error qpl_job is null\n",
+    Log(LogLevel::LOG_ERROR, "CompressIAA() Line {} Error qpl_job is null\n",
         __LINE__);
     return 1;
   }
@@ -113,7 +113,7 @@ int CompressIAA(uint8_t* input, uint32_t* input_length, uint8_t* output,
 
   qpl_status status = qpl_execute_job(job);
   if (status != QPL_STS_OK) {
-    Log(LogLevel::LOG_ERROR, "CompressIAA() Line %d status %d\n", __LINE__,
+    Log(LogLevel::LOG_ERROR, "CompressIAA() Line {} status {}\n", __LINE__,
         status);
     return 1;
   }
@@ -127,7 +127,7 @@ int CompressIAA(uint8_t* input, uint32_t* input_length, uint8_t* output,
   *input_length = job->total_in;
   *output_length = job->total_out;
 
-  Log(LogLevel::LOG_INFO, "CompressIAA() Line %d compressed_size %d\n",
+  Log(LogLevel::LOG_INFO, "CompressIAA() Line {} compressed_size {}\n",
       __LINE__, *output_length);
 
   if (output_shift > 0) {
@@ -180,7 +180,7 @@ int CompressIAA(uint8_t* input, uint32_t* input_length, uint8_t* output,
 int UncompressIAA(uint8_t* input, uint32_t* input_length, uint8_t* output,
                   uint32_t* output_length, qpl_path_t execution_path,
                   int window_bits, bool* end_of_stream, bool detect_gzip_ext) {
-  Log(LogLevel::LOG_INFO, "UncompressIAA() Line %d input_length %d\n", __LINE__,
+  Log(LogLevel::LOG_INFO, "UncompressIAA() Line {} input_length {}\n", __LINE__,
       *input_length);
 
   bool gzip_ext = false;
@@ -197,7 +197,7 @@ int UncompressIAA(uint8_t* input, uint32_t* input_length, uint8_t* output,
 
   qpl_job* job = job_.GetJob(execution_path);
   if (job == nullptr) {
-    Log(LogLevel::LOG_ERROR, "UncompressIAA() Line %d Error qpl_job is null\n",
+    Log(LogLevel::LOG_ERROR, "UncompressIAA() Line {} Error qpl_job is null\n",
         __LINE__);
     return 1;
   }
@@ -218,7 +218,7 @@ int UncompressIAA(uint8_t* input, uint32_t* input_length, uint8_t* output,
   qpl_status status = qpl_execute_job(job);
   if (status != QPL_STS_OK) {
     Log(LogLevel::LOG_ERROR,
-        "UncompressIAA() Line %d qpl_execute_job status %d\n", __LINE__,
+        "UncompressIAA() Line {} qpl_execute_job status {}\n", __LINE__,
         status);
     return 1;
   }
@@ -230,7 +230,7 @@ int UncompressIAA(uint8_t* input, uint32_t* input_length, uint8_t* output,
     *input_length = gzip_ext_dest_size + GZIP_EXT_HDRFTR_SIZE;
   }
   *end_of_stream = true;
-  Log(LogLevel::LOG_INFO, "UncompressIAA() Line %d output size %d\n", __LINE__,
+  Log(LogLevel::LOG_INFO, "UncompressIAA() Line {} output size {}\n", __LINE__,
       job->total_out);
   return 0;
 }
@@ -242,7 +242,7 @@ bool SupportedOptionsIAA(int window_bits, uint32_t input_length,
       (window_bits >= 24 && window_bits <= 31)) {
     if (input_length > MAX_BUFFER_SIZE || output_length > MAX_BUFFER_SIZE) {
       Log(LogLevel::LOG_INFO,
-          "SupportedOptionsIAA() Line %d input length %d or output length %d "
+          "SupportedOptionsIAA() Line {} input length {} or output length {} "
           "is more than 2MB\n",
           __LINE__, input_length, output_length);
       return false;
@@ -263,7 +263,7 @@ bool PrependedEmptyBlockPresent(uint8_t* input, uint32_t input_length,
       input[header_length + 2] == 0 && input[header_length + 3] == 0xFF &&
       input[header_length + 4] == 0xFF) {
     Log(LogLevel::LOG_INFO,
-        "PrependedEmptyBlockPresent() Line %d Empty block detected\n",
+        "PrependedEmptyBlockPresent() Line {} Empty block detected\n",
         __LINE__);
     return true;
   }
@@ -276,7 +276,7 @@ bool IsIAADecompressible(uint8_t* input, uint32_t input_length,
   CompressedFormat format = GetCompressedFormat(window_bits);
   if (format == CompressedFormat::ZLIB) {
     int window = GetWindowSizeFromZlibHeader(input, input_length);
-    Log(LogLevel::LOG_INFO, "IsIAADecompressible() Line %d window %d\n",
+    Log(LogLevel::LOG_INFO, "IsIAADecompressible() Line {} window {}\n",
         __LINE__, window);
     return window <= 12;
   } else {

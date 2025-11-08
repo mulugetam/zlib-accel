@@ -7,114 +7,126 @@
 #include <fstream>
 #include <regex>
 #include <sstream>
+#include <string>
 
 #include "../logging.h"
 
-#define PATH_MAX 4096
+constexpr int CUSTOM_PATH_MAX = 4096;
 
-using namespace std;
-
-bool ConfigReader::GetValue(std::string tag, uint32_t& value,
+bool ConfigReader::GetValue(const std::string& tag, uint32_t& value,
                             uint32_t max_value, uint32_t min_value) {
-  bool ret_val = false;
-  map<string, string>::iterator it;
-  it = config_settings_map.find(tag);
-  if (it != config_settings_map.end()) {
-    char* p;
-    value = (uint32_t)strtol((it->second).c_str(), &p, 10);
-    if ((*p == 0) && (min_value <= value && value <= max_value)) {
-      ret_val = true;
-    } else {
-      Log(LogLevel::LOG_INFO,
-          "ConfigReader::GetValue  Line %d invalid input value for tag %s\n",
-          __LINE__, tag.c_str());
-      value = 0;
-      ret_val = false;
-    }
-  }
-  return ret_val;
-}
-
-bool ConfigReader::GetValue(std::string tag, std::string& value) {
-  bool ret_val = false;
-  map<string, string>::iterator it;
-  it = config_settings_map.find(tag);
-  if (it != config_settings_map.end()) {
-    value = it->second;
-    if ((tag == "log_file") && !IsValidFileNameOrPath(value)) {
-      Log(LogLevel::LOG_INFO,
-          "ConfigReader::GetValue  Line %d invalid log_file value  %s\n",
-          __LINE__, value.c_str());
-      value = "";
-      ret_val = false;
-    } else {
-      ret_val = true;
-    }
-  }
-  return ret_val;
-}
-
-bool ConfigReader::ParseFile(string file_name) {
-  ifstream input_file;
-  input_file.open(file_name.c_str());
-  string delimiter = "=";
-  int initPos = 0;
-
-  if (input_file.fail()) {
+  auto it = config_settings_map.find(tag);
+  if (it == config_settings_map.end()) {
     return false;
   }
 
-  string line;
-  while (getline(input_file, line)) {
-    // Remove comment Lines
-    size_t found = line.find_first_of('#');
-    string config_data = line.substr(0, found);
+  try {
+    size_t pos = 0;
+    unsigned long temp = std::stoul(it->second, &pos);
+
+    if (temp > UINT32_MAX) {
+      Log(LogLevel::LOG_ERROR,
+          "ConfigReader::GetValue Line {} value exceeds uint32_t range for tag "
+          "{}\n",
+          __LINE__, tag.c_str());
+      value = 0;
+      return false;
+    }
+
+    if (pos != it->second.length() || temp < min_value || temp > max_value) {
+      Log(LogLevel::LOG_ERROR,
+          "ConfigReader::GetValue Line {} invalid input value for tag {}\n",
+          __LINE__, tag.c_str());
+      value = 0;
+      return false;
+    }
+
+    value = static_cast<uint32_t>(temp);
+    return true;
+
+  } catch (const std::exception&) {
+    Log(LogLevel::LOG_ERROR,
+        "ConfigReader::GetValue Line {} invalid input value for tag {}\n",
+        __LINE__, tag.c_str());
+    value = 0;
+    return false;
+  }
+}
+
+bool ConfigReader::GetValue(const std::string& tag, std::string& value) {
+  auto it = config_settings_map.find(tag);
+  if (it == config_settings_map.end()) {
+    return false;
+  }
+
+  value = it->second;
+
+  if (tag == "log_file" && !IsValidFileNameOrPath(value)) {
+    Log(LogLevel::LOG_ERROR,
+        "ConfigReader::GetValue Line {} invalid log_file value {}\n", __LINE__,
+        value.c_str());
+    value.clear();
+    return false;
+  }
+
+  return true;
+}
+
+bool ConfigReader::ParseFile(const std::string& file_name) {
+  std::ifstream input_file(file_name);
+
+  if (!input_file) {
+    return false;
+  }
+
+  std::string line;
+  while (std::getline(input_file, line)) {
+    // Remove comment lines
+    auto comment_pos = line.find('#');
+    std::string config_data = line.substr(0, comment_pos);
 
     // Remove ^M from config_data
     config_data.erase(std::remove(config_data.begin(), config_data.end(), '\r'),
                       config_data.end());
 
-    if (config_data.empty()) continue;
-
-    size_t length = config_data.find(delimiter);
-
-    string tag, value;
-
-    if (length != string::npos) {
-      tag = config_data.substr(initPos, length);
-      value = config_data.substr(length + 1);
+    if (config_data.empty()) {
+      continue;
     }
 
-    // Trim white spaces
+    // Find delimiter
+    auto delimiter_pos = config_data.find('=');
+
+    if (delimiter_pos == std::string::npos) {
+      continue;
+    }
+
+    // Split into tag and value
+    std::string tag = config_data.substr(0, delimiter_pos);
+    std::string value = config_data.substr(delimiter_pos + 1);
+
+    // Trim whitespace
     tag = Reduce(tag);
     value = Reduce(value);
 
-    if (tag.empty() || value.empty()) continue;
-
-    // Check if any of the tags is repeated more than one times
-    // it needs to pick the latest one instead of the old one.
-
-    // Search, if the tag is already present or not
-    // If it is already present, then delete an existing one
-
-    std::map<std::string, std::string>::iterator itr =
-        config_settings_map.find(tag);
-    if (itr != config_settings_map.end()) {
-      config_settings_map.erase(tag);
+    if (tag.empty() || value.empty()) {
+      continue;
     }
 
-    config_settings_map.insert(std::pair<string, string>(tag, value));
+    config_settings_map[tag] = std::move(value);
   }
+
   return true;
 }
 
 std::string ConfigReader::Trim(const std::string& str,
                                const std::string& whitespace) {
-  size_t str_begin = str.find_first_not_of(whitespace);
-  if (str_begin == std::string::npos) return "";
+  auto str_begin = str.find_first_not_of(whitespace);
+  if (str_begin == std::string::npos) {
+    return {};
+  }
 
-  size_t str_end = str.find_last_not_of(whitespace);
-  size_t str_range = str_end - str_begin + 1;
+  auto str_end = str.find_last_not_of(whitespace);
+  auto str_range = str_end - str_begin + 1;
 
   return str.substr(str_begin, str_range);
 }
@@ -122,19 +134,19 @@ std::string ConfigReader::Trim(const std::string& str,
 std::string ConfigReader::Reduce(const std::string& str,
                                  const std::string& fill,
                                  const std::string& whitespace) {
-  // trim first
-  string result = Trim(str, whitespace);
+  // Trim first
+  std::string result = Trim(str, whitespace);
 
-  // replace sub ranges
-  size_t begin_space = result.find_first_of(whitespace);
+  // Replace whitespace sequences with fill
+  auto begin_space = result.find_first_of(whitespace);
   while (begin_space != std::string::npos) {
-    size_t end_space = result.find_first_not_of(whitespace, begin_space);
-    size_t range = end_space - begin_space;
+    auto end_space = result.find_first_not_of(whitespace, begin_space);
+    auto range = end_space - begin_space;
 
     result.replace(begin_space, range, fill);
 
-    size_t newStart = begin_space + fill.length();
-    begin_space = result.find_first_of(whitespace, newStart);
+    auto new_start = begin_space + fill.length();
+    begin_space = result.find_first_of(whitespace, new_start);
   }
 
   return result;
@@ -142,10 +154,8 @@ std::string ConfigReader::Reduce(const std::string& str,
 
 std::string ConfigReader::DumpValues() {
   std::stringstream values;
-  map<string, string>::iterator it;
-  for (it = config_settings_map.begin(); it != config_settings_map.end();
-       ++it) {
-    values << it->first << " = " << it->second << endl;
+  for (const auto& pair : config_settings_map) {
+    values << pair.first << " = " << pair.second << '\n';
   }
   return values.str();
 }
@@ -155,11 +165,13 @@ bool ConfigReader::IsValidFileNameOrPath(const std::string& input) {
   if (input.find('\0') != std::string::npos) {
     return false;
   }
+
   // Check for length constraints
-  if (input.length() > PATH_MAX) {
+  if (input.length() > CUSTOM_PATH_MAX) {
     return false;
   }
+
   // Regular expression to match valid file names and paths
-  std::regex valid_pattern("^[a-zA-Z0-9._/-]+$");
+  static const std::regex valid_pattern("^[a-zA-Z0-9._/-]+$");
   return std::regex_match(input, valid_pattern);
 }

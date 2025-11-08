@@ -6,7 +6,9 @@
 #include "config/config.h"
 #include "logging.h"
 #include "utils.h"
+
 using namespace config;
+
 #ifdef USE_QAT
 #include <iostream>
 
@@ -80,15 +82,15 @@ void QATJob::Init(QzSession_T **qzSession, CompressedFormat format,
   int status = qzInit(*qzSession, 0);
   if (status != QZ_OK && status != QZ_DUPLICATE) {
     Log(LogLevel::LOG_ERROR,
-        "qzInit() failure  Line %d  session %p returned %d\n", __LINE__,
-        *qzSession, status);
+        "qzInit() failure  Line {}  session {:p} returned {}\n", __LINE__,
+        static_cast<void *>(*qzSession), status);
     delete *qzSession;
     *qzSession = nullptr;
     return;
   } else {
     Log(LogLevel::LOG_INFO,
-        "qzInit() success  Line %d session %p returned %d\n", __LINE__,
-        *qzSession, status);
+        "qzInit() success  Line {} session {:p} returned {}\n", __LINE__,
+        static_cast<void *>(*qzSession), status);
   }
 
   QzSessionParamsDeflateExt_T deflateExt = {{}, 0, 0};
@@ -137,8 +139,8 @@ void QATJob::Init(QzSession_T **qzSession, CompressedFormat format,
   status = qzSetupSessionDeflateExt(*qzSession, &deflateExt);
   if (status != QZ_OK) {
     Log(LogLevel::LOG_ERROR,
-        "qzSetupSessionDeflateExt() Line %d session %p returned %d\n", __LINE__,
-        *qzSession, status);
+        "qzSetupSessionDeflateExt() Line {} session {:p} returned {}\n",
+        __LINE__, static_cast<void *>(*qzSession), status);
     Close();
     return;
   }
@@ -163,15 +165,15 @@ void QATJob::Close(QzSession_T *qzSession) {
   int rc = qzTeardownSession(qzSession);
   if (rc != QZ_OK) {
     Log(LogLevel::LOG_ERROR,
-        "qzTeardownSession() Line %d session %p returned %d\n", __LINE__,
-        qzSession, rc);
+        "qzTeardownSession() Line {} session {:p} returned {}\n", __LINE__,
+        static_cast<void *>(qzSession), rc);
   }
 
   // Attempt to close the session
   rc = qzClose(qzSession);
   if (rc != QZ_OK) {
-    Log(LogLevel::LOG_ERROR, "qzClose() Line %d  session %p returned %d\n",
-        __LINE__, qzSession, rc);
+    Log(LogLevel::LOG_ERROR, "qzClose() Line {}  session {:p} returned {}\n",
+        __LINE__, static_cast<void *>(qzSession), rc);
   }
 
   delete qzSession;
@@ -181,11 +183,11 @@ static thread_local QATJob qat_job_;
 
 int CompressQAT(uint8_t *input, uint32_t *input_length, uint8_t *output,
                 uint32_t *output_length, int window_bits, bool gzip_ext) {
-  Log(LogLevel::LOG_INFO, "CompressQAT() Line %d input_length %d \n", __LINE__,
+  Log(LogLevel::LOG_INFO, "CompressQAT() Line {} input_length {} \n", __LINE__,
       *input_length);
   QzSession_T *qzSessObj = qat_job_.GetQATSession(window_bits, gzip_ext);
   if (qzSessObj == nullptr) {
-    Log(LogLevel::LOG_ERROR, "CompressQAT() Line %d  Error qzSessObj null \n",
+    Log(LogLevel::LOG_ERROR, "CompressQAT() Line {}  Error qzSessObj null \n",
         __LINE__);
     return 1;
   }
@@ -195,12 +197,12 @@ int CompressQAT(uint8_t *input, uint32_t *input_length, uint8_t *output,
                       (unsigned char *)output, &dst_buf_size, 1);
   if (rc != QZ_OK) {
     Log(LogLevel::LOG_ERROR,
-        "CompressQAT() Line %d qzCompress returns status %d \n", __LINE__, rc);
+        "CompressQAT() Line {} qzCompress returns status {} \n", __LINE__, rc);
     return rc;
   }
   *input_length = src_buf_size;
   *output_length = dst_buf_size;
-  Log(LogLevel::LOG_INFO, "CompressQAT() Line %d compressed_size %d \n",
+  Log(LogLevel::LOG_INFO, "CompressQAT() Line {} compressed_size {} \n",
       __LINE__, *output_length);
   return 0;
 }
@@ -208,7 +210,7 @@ int CompressQAT(uint8_t *input, uint32_t *input_length, uint8_t *output,
 int UncompressQAT(uint8_t *input, uint32_t *input_length, uint8_t *output,
                   uint32_t *output_length, int window_bits, bool *end_of_stream,
                   bool detect_gzip_ext) {
-  Log(LogLevel::LOG_INFO, "UncompressQAT() Line %d input_length %d \n",
+  Log(LogLevel::LOG_INFO, "UncompressQAT() Line {} input_length {} \n",
       __LINE__, *input_length);
 
   bool gzip_ext = false;
@@ -221,7 +223,7 @@ int UncompressQAT(uint8_t *input, uint32_t *input_length, uint8_t *output,
 
   QzSession_T *qzSessObj = qat_job_.GetQATSession(window_bits, gzip_ext);
   if (qzSessObj == nullptr) {
-    Log(LogLevel::LOG_ERROR, "UncompressQAT() Line %d Error qzSessObj null \n",
+    Log(LogLevel::LOG_ERROR, "UncompressQAT() Line {} Error qzSessObj null \n",
         __LINE__);
     return 1;
   }
@@ -235,7 +237,7 @@ int UncompressQAT(uint8_t *input, uint32_t *input_length, uint8_t *output,
                         (unsigned char *)output, &dst_buf_size);
   if (rc != QZ_OK) {
     Log(LogLevel::LOG_ERROR,
-        "UncompressQAT() Line %d qzDecompress status %d \n", __LINE__, rc);
+        "UncompressQAT() Line {} qzDecompress status {} \n", __LINE__, rc);
     return 1;
   }
   *input_length = src_buf_size;
@@ -258,7 +260,7 @@ int UncompressQAT(uint8_t *input, uint32_t *input_length, uint8_t *output,
   }
 
   Log(LogLevel::LOG_INFO,
-      "UncompressQAT() Line %d output size %d  end_of_stream %d \n", __LINE__,
+      "UncompressQAT() Line {} output size {}  end_of_stream {} \n", __LINE__,
       dst_buf_size, *end_of_stream);
   return 0;
 }
@@ -269,7 +271,7 @@ bool SupportedOptionsQAT(int window_bits, uint32_t input_length) {
       (window_bits >= 24 && window_bits <= 31)) {
     if (input_length < QZ_COMP_THRESHOLD_DEFAULT) {
       Log(LogLevel::LOG_INFO,
-          "SupportedOptionsQAT() Line %d input length %d is less than "
+          "SupportedOptionsQAT() Line {} input length {} is less than "
           "QAT HW threshold\n",
           __LINE__, input_length);
       return false;
@@ -278,7 +280,7 @@ bool SupportedOptionsQAT(int window_bits, uint32_t input_length) {
         !configs[QAT_COMPRESSION_ALLOW_CHUNKING] &&
         input_length > QAT_HW_BUFF_SZ) {
       Log(LogLevel::LOG_INFO,
-          "SupportedOptionsQAT() Line %d input length %d is greater than "
+          "SupportedOptionsQAT() Line {} input length {} is greater than "
           "QAT HW buffer and chunking is not allowed\n",
           __LINE__, input_length);
       return false;
