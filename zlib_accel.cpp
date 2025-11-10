@@ -73,74 +73,109 @@ static int (*orig_gzeof)(gzFile file);
 static int init_zlib_accel(void) __attribute__((constructor));
 static void cleanup_zlib_accel(void) __attribute__((destructor));
 
-static int init_zlib_accel(void) {
-  orig_deflateInit_ =
-      reinterpret_cast<int (*)(z_streamp, int, const char*, int)>(
-          dlsym(RTLD_NEXT, "deflateInit_"));
-  orig_deflateInit2_ =
-      reinterpret_cast<int (*)(z_streamp, int, int, int, int, int, const char*,
-                               int)>(dlsym(RTLD_NEXT, "deflateInit2_"));
-  orig_deflateSetDictionary =
-      reinterpret_cast<int (*)(z_streamp, const Bytef*, uInt)>(
-          dlsym(RTLD_NEXT, "deflateSetDictionary"));
-  orig_deflate =
-      reinterpret_cast<int (*)(z_streamp, int)>(dlsym(RTLD_NEXT, "deflate"));
-  orig_deflateEnd =
-      reinterpret_cast<int (*)(z_streamp)>(dlsym(RTLD_NEXT, "deflateEnd"));
-  orig_deflateReset =
-      reinterpret_cast<int (*)(z_streamp)>(dlsym(RTLD_NEXT, "deflateReset"));
-  orig_inflateInit_ = reinterpret_cast<int (*)(z_streamp, const char*, int)>(
-      dlsym(RTLD_NEXT, "inflateInit_"));
-  orig_inflateInit2_ =
-      reinterpret_cast<int (*)(z_streamp, int, const char*, int)>(
-          dlsym(RTLD_NEXT, "inflateInit2_"));
-  orig_inflateSetDictionary =
-      reinterpret_cast<int (*)(z_streamp, const Bytef*, uInt)>(
-          dlsym(RTLD_NEXT, "inflateSetDictionary"));
-  orig_inflate =
-      reinterpret_cast<int (*)(z_streamp, int)>(dlsym(RTLD_NEXT, "inflate"));
-  orig_inflateEnd =
-      reinterpret_cast<int (*)(z_streamp)>(dlsym(RTLD_NEXT, "inflateEnd"));
-  orig_inflateReset =
-      reinterpret_cast<int (*)(z_streamp)>(dlsym(RTLD_NEXT, "inflateReset"));
-  orig_compress =
-      reinterpret_cast<int (*)(Bytef*, uLongf*, const Bytef*, uLong)>(
-          dlsym(RTLD_NEXT, "compress"));
-  orig_compress2 =
-      reinterpret_cast<int (*)(Bytef*, uLongf*, const Bytef*, uLong, int)>(
-          dlsym(RTLD_NEXT, "compress2"));
-  orig_uncompress =
-      reinterpret_cast<int (*)(Bytef*, uLongf*, const Bytef*, uLong)>(
-          dlsym(RTLD_NEXT, "uncompress"));
-  orig_uncompress2 =
-      reinterpret_cast<int (*)(Bytef*, uLongf*, const Bytef*, uLong*)>(
-          dlsym(RTLD_NEXT, "uncompress2"));
-  orig_gzopen = reinterpret_cast<gzFile (*)(const char*, const char*)>(
-      dlsym(RTLD_NEXT, "gzopen"));
-  orig_gzdopen = reinterpret_cast<gzFile (*)(int, const char*)>(
-      dlsym(RTLD_NEXT, "gzdopen"));
-  orig_gzwrite = reinterpret_cast<int (*)(gzFile, voidpc, unsigned)>(
-      dlsym(RTLD_NEXT, "gzwrite"));
-  orig_gzread = reinterpret_cast<int (*)(gzFile, voidp, unsigned)>(
-      dlsym(RTLD_NEXT, "gzread"));
-  orig_gzclose = reinterpret_cast<int (*)(gzFile)>(dlsym(RTLD_NEXT, "gzclose"));
-  orig_gzeof = reinterpret_cast<int (*)(gzFile)>(dlsym(RTLD_NEXT, "gzeof"));
+// Macro that load symbols with error checking
+#define LOAD_SYMBOL(fptr, type, name)                                         \
+  do {                                                                        \
+    dlerror();                                                                \
+    fptr = reinterpret_cast<type>(dlsym(RTLD_NEXT, name));                    \
+    const char* error = dlerror();                                            \
+    if (error != nullptr) {                                                   \
+      Log(LogLevel::LOG_ERROR,                                                \
+          "init_zlib_accel Line %d Failed to load symbol '%s': %s\n",         \
+          __LINE__, name, error);                                             \
+      return 1;                                                               \
+    }                                                                         \
+    if (fptr == nullptr) {                                                    \
+      Log(LogLevel::LOG_ERROR,                                                \
+          "init_zlib_accel Line %d Symbol '%s' resolved to NULL\n", __LINE__, \
+          name);                                                              \
+      return 1;                                                               \
+    }                                                                         \
+  } while (0)
 
+static int init_zlib_accel(void) {
+  // Load deflate functions
+  LOAD_SYMBOL(orig_deflateInit_, int (*)(z_streamp, int, const char*, int),
+              "deflateInit_");
+
+  LOAD_SYMBOL(orig_deflateInit2_,
+              int (*)(z_streamp, int, int, int, int, int, const char*, int),
+              "deflateInit2_");
+
+  LOAD_SYMBOL(orig_deflateSetDictionary, int (*)(z_streamp, const Bytef*, uInt),
+              "deflateSetDictionary");
+
+  LOAD_SYMBOL(orig_deflate, int (*)(z_streamp, int), "deflate");
+
+  LOAD_SYMBOL(orig_deflateEnd, int (*)(z_streamp), "deflateEnd");
+
+  LOAD_SYMBOL(orig_deflateReset, int (*)(z_streamp), "deflateReset");
+
+  // Load inflate functions
+  LOAD_SYMBOL(orig_inflateInit_, int (*)(z_streamp, const char*, int),
+              "inflateInit_");
+
+  LOAD_SYMBOL(orig_inflateInit2_, int (*)(z_streamp, int, const char*, int),
+              "inflateInit2_");
+
+  LOAD_SYMBOL(orig_inflateSetDictionary, int (*)(z_streamp, const Bytef*, uInt),
+              "inflateSetDictionary");
+
+  LOAD_SYMBOL(orig_inflate, int (*)(z_streamp, int), "inflate");
+
+  LOAD_SYMBOL(orig_inflateEnd, int (*)(z_streamp), "inflateEnd");
+
+  LOAD_SYMBOL(orig_inflateReset, int (*)(z_streamp), "inflateReset");
+
+  // Load compress/uncompress functions
+  LOAD_SYMBOL(orig_compress, int (*)(Bytef*, uLongf*, const Bytef*, uLong),
+              "compress");
+
+  LOAD_SYMBOL(orig_compress2,
+              int (*)(Bytef*, uLongf*, const Bytef*, uLong, int), "compress2");
+
+  LOAD_SYMBOL(orig_uncompress, int (*)(Bytef*, uLongf*, const Bytef*, uLong),
+              "uncompress");
+
+  LOAD_SYMBOL(orig_uncompress2, int (*)(Bytef*, uLongf*, const Bytef*, uLong*),
+              "uncompress2");
+
+  // Load gzip functions
+  LOAD_SYMBOL(orig_gzopen, gzFile(*)(const char*, const char*), "gzopen");
+
+  LOAD_SYMBOL(orig_gzdopen, gzFile(*)(int, const char*), "gzdopen");
+
+  LOAD_SYMBOL(orig_gzwrite, int (*)(gzFile, voidpc, unsigned), "gzwrite");
+
+  LOAD_SYMBOL(orig_gzread, int (*)(gzFile, voidp, unsigned), "gzread");
+
+  LOAD_SYMBOL(orig_gzclose, int (*)(gzFile), "gzclose");
+
+  LOAD_SYMBOL(orig_gzeof, int (*)(gzFile), "gzeof");
+
+  // Load configuration file
   std::string config_file_content;
-  config::LoadConfigFile(config_file_content);
+  if (!config::LoadConfigFile(config_file_content)) {
+    Log(LogLevel::LOG_ERROR, "Error: Failed to load configuration file\n");
+    return 1;
+  }
 
 #if defined(DEBUG_LOG) || defined(ENABLE_STATISTICS)
   if (!config::log_file.empty()) {
     CreateLogFile(config::log_file.c_str());
   }
 #endif
+
   return 0;
 }
+
 static void cleanup_zlib_accel(void) {
 #if defined(DEBUG_LOG) || defined(ENABLE_STATISTICS)
   CloseLogFile();
 #endif
 }
+
+#undef LOAD_SYMBOL
 
 // Avoid recursive call (e.g., if QATzip falls back to zlib internally)
 static thread_local bool in_call = false;
@@ -172,9 +207,9 @@ class DeflateStreamSettings {
  public:
   void Set(z_streamp strm, int level, int method, int window_bits,
            int mem_level, int strategy) {
-    DeflateSettings* settings =
-        new DeflateSettings(level, method, window_bits, mem_level, strategy);
-    map.Set(strm, settings);
+    auto settings = std::make_unique<DeflateSettings>(
+        level, method, window_bits, mem_level, strategy);
+    map.Set(strm, std::move(settings));
   }
 
   void Unset(z_streamp strm) { map.Unset(strm); }
@@ -182,15 +217,15 @@ class DeflateStreamSettings {
   DeflateSettings* Get(z_streamp strm) { return map.Get(strm); }
 
  private:
-  ShardedMap<z_streamp, DeflateSettings*> map;
+  ShardedMap<z_streamp, std::unique_ptr<DeflateSettings>> map;
 };
 DeflateStreamSettings deflate_stream_settings;
 
 class InflateStreamSettings {
  public:
   void Set(z_streamp strm, int window_bits) {
-    InflateSettings* settings = new InflateSettings(window_bits);
-    map.Set(strm, settings);
+    auto settings = std::make_unique<InflateSettings>(window_bits);
+    map.Set(strm, std::move(settings));
   }
 
   void Unset(z_streamp strm) { map.Unset(strm); }
@@ -198,7 +233,7 @@ class InflateStreamSettings {
   InflateSettings* Get(z_streamp strm) { return map.Get(strm); }
 
  private:
-  ShardedMap<z_streamp, InflateSettings*> map;
+  ShardedMap<z_streamp, std::unique_ptr<InflateSettings>> map;
 };
 InflateStreamSettings inflate_stream_settings;
 
@@ -775,8 +810,8 @@ struct GzipFile {
 class GzipFiles {
  public:
   void Set(gzFile file, int fd, FileMode file_mode) {
-    GzipFile* f = new GzipFile(fd, file_mode);
-    map.Set(file, f);
+    auto f = std::make_unique<GzipFile>(fd, file_mode);
+    map.Set(file, std::move(f));
   }
 
   void Unset(gzFile file) { map.Unset(file); }
@@ -784,7 +819,7 @@ class GzipFiles {
   GzipFile* Get(gzFile file) { return map.Get(file); }
 
  private:
-  ShardedMap<gzFile, GzipFile*> map;
+  ShardedMap<gzFile, std::unique_ptr<GzipFile>> map;
 };
 GzipFiles gzip_files;
 
