@@ -10,33 +10,54 @@
 using namespace config;
 
 #ifdef USE_QAT
-#include <iostream>
+
+void QATJob::QzSessionDeleter::operator()(QzSession_T *qzSession) const {
+  if (!qzSession) {
+    return;
+  }
+
+  int rc = qzTeardownSession(qzSession);
+  if (rc != QZ_OK) {
+    Log(LogLevel::LOG_ERROR,
+        "qzTeardownSession() Line %d session %p returned %d\n", __LINE__,
+        qzSession, rc);
+  }
+
+  // Attempt to close the session
+  rc = qzClose(qzSession);
+  if (rc != QZ_OK) {
+    Log(LogLevel::LOG_ERROR, "qzClose() Line %d  session %p returned %d\n",
+        __LINE__, qzSession, rc);
+  }
+
+  delete qzSession;
+}
 
 QzSession_T *QATJob::GetQATSession(int window_bits, bool gzip_ext) {
   CompressedFormat format = GetCompressedFormat(window_bits);
   switch (format) {
     case CompressedFormat::DEFLATE_RAW:
       if (qzSession_deflate_raw == nullptr) {
-        Init(&qzSession_deflate_raw, format);
+        Init(qzSession_deflate_raw, format);
       }
-      return qzSession_deflate_raw;
+      return qzSession_deflate_raw.get();
     case CompressedFormat::ZLIB:
       if (qzSession_zlib == nullptr) {
-        Init(&qzSession_zlib,
+        Init(qzSession_zlib,
              format);  // we do not have zlib format in public enum of qatzip
       }
-      return qzSession_zlib;
+      return qzSession_zlib.get();
     case CompressedFormat::GZIP:
       if (gzip_ext) {
         if (qzSession_gzip_ext == nullptr) {
-          Init(&qzSession_gzip_ext, format, true);
+          Init(qzSession_gzip_ext, format, true);
         }
-        return qzSession_gzip_ext;
+        return qzSession_gzip_ext.get();
       } else {
         if (qzSession_gzip == nullptr) {
-          Init(&qzSession_gzip, format);
+          Init(qzSession_gzip, format);
         }
-        return qzSession_gzip;
+        return qzSession_gzip.get();
       }
     case CompressedFormat::INVALID:
       return nullptr;
@@ -48,20 +69,16 @@ void QATJob::CloseQATSession(int window_bits, bool gzip_ext) {
   CompressedFormat format = GetCompressedFormat(window_bits);
   switch (format) {
     case CompressedFormat::DEFLATE_RAW:
-      Close(qzSession_deflate_raw);
-      qzSession_deflate_raw = nullptr;
+      qzSession_deflate_raw.reset();
       break;
     case CompressedFormat::ZLIB:
-      Close(qzSession_zlib);
-      qzSession_zlib = nullptr;
+      qzSession_zlib.reset();
       break;
     case CompressedFormat::GZIP:
       if (gzip_ext) {
-        Close(qzSession_gzip_ext);
-        qzSession_gzip_ext = nullptr;
+        qzSession_gzip_ext.reset();
       } else {
-        Close(qzSession_gzip);
-        qzSession_gzip = nullptr;
+        qzSession_gzip.reset();
       }
       break;
     default:
@@ -69,26 +86,25 @@ void QATJob::CloseQATSession(int window_bits, bool gzip_ext) {
   }
 }
 
-void QATJob::Init(QzSession_T **qzSession, CompressedFormat format,
+void QATJob::Init(QzSessionPtr &qzSession, CompressedFormat format,
                   bool gzip_ext) {
+  QzSessionPtr session = nullptr;
   try {
-    *qzSession = new QzSession_T;
-    memset(*qzSession, 0, sizeof(QzSession_T));
+    session = QzSessionPtr(new QzSession_T());
+    memset(session.get(), 0, sizeof(QzSession_T));
   } catch (std::bad_alloc &e) {
-    *qzSession = nullptr;
     return;
   }
+
   // Initialize QAT hardware
-  int status = qzInit(*qzSession, 0);
+  int status = qzInit(session.get(), 0);
   if (status != QZ_OK && status != QZ_DUPLICATE) {
     Log(LogLevel::LOG_ERROR, "qzInit() failure  Line ", __LINE__, "  session ",
-        static_cast<void *>(*qzSession), " returned ", status, "\n");
-    delete *qzSession;
-    *qzSession = nullptr;
+        static_cast<void *>(session.get()), " returned ", status, "\n");
     return;
   } else {
     Log(LogLevel::LOG_INFO, "qzInit() success  Line ", __LINE__, " session ",
-        static_cast<void *>(*qzSession), " returned ", status, "\n");
+        static_cast<void *>(session.get()), " returned ", status, "\n");
   }
 
   QzSessionParamsDeflateExt_T deflateExt = {{}, 0, 0};
@@ -134,46 +150,16 @@ void QATJob::Init(QzSession_T **qzSession, CompressedFormat format,
       deflateExt.deflate_params.data_fmt = QZ_FMT_NUM;
       break;
   }
-  status = qzSetupSessionDeflateExt(*qzSession, &deflateExt);
+  status = qzSetupSessionDeflateExt(session.get(), &deflateExt);
   if (status != QZ_OK) {
     Log(LogLevel::LOG_ERROR, "qzSetupSessionDeflateExt() Line ", __LINE__,
-        " session ", static_cast<void *>(*qzSession), " returned ", status,
+        " session ", static_cast<void *>(session.get()), " returned ", status,
         "\n");
-    Close();
-    return;
-  }
-}
-
-void QATJob::Close() {
-  Close(qzSession_deflate_raw);
-  qzSession_deflate_raw = nullptr;
-  Close(qzSession_zlib);
-  qzSession_zlib = nullptr;
-  Close(qzSession_gzip);
-  qzSession_gzip = nullptr;
-  Close(qzSession_gzip_ext);
-  qzSession_gzip_ext = nullptr;
-}
-
-void QATJob::Close(QzSession_T *qzSession) {
-  if (!qzSession) {
     return;
   }
 
-  int rc = qzTeardownSession(qzSession);
-  if (rc != QZ_OK) {
-    Log(LogLevel::LOG_ERROR, "qzTeardownSession() Line ", __LINE__, " session ",
-        static_cast<void *>(qzSession), " returned ", rc, "\n");
-  }
-
-  // Attempt to close the session
-  rc = qzClose(qzSession);
-  if (rc != QZ_OK) {
-    Log(LogLevel::LOG_ERROR, "qzClose() Line ", __LINE__, "  session ",
-        static_cast<void *>(qzSession), " returned ", rc, "\n");
-  }
-
-  delete qzSession;
+  // Transfer ownership to qzSession
+  qzSession = std::move(session);
 }
 
 static thread_local QATJob qat_job_;
