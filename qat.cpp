@@ -99,14 +99,12 @@ void QATJob::Init(QzSessionPtr &qzSession, CompressedFormat format,
   // Initialize QAT hardware
   int status = qzInit(session.get(), 0);
   if (status != QZ_OK && status != QZ_DUPLICATE) {
-    Log(LogLevel::LOG_ERROR,
-        "qzInit() failure  Line %d  session %p returned %d\n", __LINE__,
-        session.get(), status);
+    Log(LogLevel::LOG_ERROR, "qzInit() failure  Line ", __LINE__, "  session ",
+        static_cast<void *>(session.get()), " returned ", status, "\n");
     return;
   } else {
-    Log(LogLevel::LOG_INFO,
-        "qzInit() success  Line %d session %p returned %d\n", __LINE__,
-        session.get(), status);
+    Log(LogLevel::LOG_INFO, "qzInit() success  Line ", __LINE__, " session ",
+        static_cast<void *>(session.get()), " returned ", status, "\n");
   }
 
   QzSessionParamsDeflateExt_T deflateExt = {{}, 0, 0};
@@ -154,9 +152,9 @@ void QATJob::Init(QzSessionPtr &qzSession, CompressedFormat format,
   }
   status = qzSetupSessionDeflateExt(session.get(), &deflateExt);
   if (status != QZ_OK) {
-    Log(LogLevel::LOG_ERROR,
-        "qzSetupSessionDeflateExt() Line %d session %p returned %d\n", __LINE__,
-        session.get(), status);
+    Log(LogLevel::LOG_ERROR, "qzSetupSessionDeflateExt() Line ", __LINE__,
+        " session ", static_cast<void *>(session.get()), " returned ", status,
+        "\n");
     return;
   }
 
@@ -168,12 +166,12 @@ static thread_local QATJob qat_job_;
 
 int CompressQAT(uint8_t *input, uint32_t *input_length, uint8_t *output,
                 uint32_t *output_length, int window_bits, bool gzip_ext) {
-  Log(LogLevel::LOG_INFO, "CompressQAT() Line %d input_length %d \n", __LINE__,
-      *input_length);
+  Log(LogLevel::LOG_INFO, "CompressQAT() Line ", __LINE__, " input_length ",
+      *input_length, " \n");
   QzSession_T *qzSessObj = qat_job_.GetQATSession(window_bits, gzip_ext);
   if (qzSessObj == nullptr) {
-    Log(LogLevel::LOG_ERROR, "CompressQAT() Line %d  Error qzSessObj null \n",
-        __LINE__);
+    Log(LogLevel::LOG_ERROR, "CompressQAT() Line ", __LINE__,
+        "  Error qzSessObj null \n");
     return 1;
   }
   unsigned int src_buf_size = static_cast<unsigned int>(*input_length);
@@ -181,22 +179,22 @@ int CompressQAT(uint8_t *input, uint32_t *input_length, uint8_t *output,
   int rc = qzCompress(qzSessObj, (unsigned char *)input, &src_buf_size,
                       (unsigned char *)output, &dst_buf_size, 1);
   if (rc != QZ_OK) {
-    Log(LogLevel::LOG_ERROR,
-        "CompressQAT() Line %d qzCompress returns status %d \n", __LINE__, rc);
+    Log(LogLevel::LOG_ERROR, "CompressQAT() Line ", __LINE__,
+        " qzCompress returns status ", rc, " \n");
     return rc;
   }
   *input_length = src_buf_size;
   *output_length = dst_buf_size;
-  Log(LogLevel::LOG_INFO, "CompressQAT() Line %d compressed_size %d \n",
-      __LINE__, *output_length);
+  Log(LogLevel::LOG_INFO, "CompressQAT() Line ", __LINE__, " compressed_size ",
+      *output_length, " \n");
   return 0;
 }
 
 int UncompressQAT(uint8_t *input, uint32_t *input_length, uint8_t *output,
                   uint32_t *output_length, int window_bits, bool *end_of_stream,
                   bool detect_gzip_ext) {
-  Log(LogLevel::LOG_INFO, "UncompressQAT() Line %d input_length %d \n",
-      __LINE__, *input_length);
+  Log(LogLevel::LOG_INFO, "UncompressQAT() Line ", __LINE__, " input_length ",
+      *input_length, " \n");
 
   bool gzip_ext = false;
   uint32_t gzip_ext_src_size = 0;
@@ -208,8 +206,8 @@ int UncompressQAT(uint8_t *input, uint32_t *input_length, uint8_t *output,
 
   QzSession_T *qzSessObj = qat_job_.GetQATSession(window_bits, gzip_ext);
   if (qzSessObj == nullptr) {
-    Log(LogLevel::LOG_ERROR, "UncompressQAT() Line %d Error qzSessObj null \n",
-        __LINE__);
+    Log(LogLevel::LOG_ERROR, "UncompressQAT() Line ", __LINE__,
+        " Error qzSessObj null \n");
     return 1;
   }
 
@@ -221,8 +219,8 @@ int UncompressQAT(uint8_t *input, uint32_t *input_length, uint8_t *output,
   int rc = qzDecompress(qzSessObj, (unsigned char *)input, &src_buf_size,
                         (unsigned char *)output, &dst_buf_size);
   if (rc != QZ_OK) {
-    Log(LogLevel::LOG_ERROR,
-        "UncompressQAT() Line %d qzDecompress status %d \n", __LINE__, rc);
+    Log(LogLevel::LOG_ERROR, "UncompressQAT() Line ", __LINE__,
+        " qzDecompress status ", rc, " \n");
     return 1;
   }
   *input_length = src_buf_size;
@@ -244,9 +242,8 @@ int UncompressQAT(uint8_t *input, uint32_t *input_length, uint8_t *output,
     *end_of_stream = true;
   }
 
-  Log(LogLevel::LOG_INFO,
-      "UncompressQAT() Line %d output size %d  end_of_stream %d \n", __LINE__,
-      dst_buf_size, *end_of_stream);
+  Log(LogLevel::LOG_INFO, "UncompressQAT() Line ", __LINE__, " output size ",
+      dst_buf_size, "  end_of_stream ", *end_of_stream, " \n");
   return 0;
 }
 
@@ -255,19 +252,16 @@ bool SupportedOptionsQAT(int window_bits, uint32_t input_length) {
       (window_bits >= 8 && window_bits <= 15) ||
       (window_bits >= 24 && window_bits <= 31)) {
     if (input_length < QZ_COMP_THRESHOLD_DEFAULT) {
-      Log(LogLevel::LOG_INFO,
-          "SupportedOptionsQAT() Line %d input length %d is less than "
-          "QAT HW threshold\n",
-          __LINE__, input_length);
+      Log(LogLevel::LOG_INFO, "SupportedOptionsQAT() Line ", __LINE__,
+          " input length ", input_length, " is less than QAT HW threshold\n");
       return false;
     }
     if (GetCompressedFormat(window_bits) != CompressedFormat::DEFLATE_RAW &&
         !configs[QAT_COMPRESSION_ALLOW_CHUNKING] &&
         input_length > QAT_HW_BUFF_SZ) {
-      Log(LogLevel::LOG_INFO,
-          "SupportedOptionsQAT() Line %d input length %d is greater than "
-          "QAT HW buffer and chunking is not allowed\n",
-          __LINE__, input_length);
+      Log(LogLevel::LOG_INFO, "SupportedOptionsQAT() Line ", __LINE__,
+          " input length ", input_length,
+          " is greater than QAT HW buffer and chunking is not allowed\n");
       return false;
     }
     return true;
